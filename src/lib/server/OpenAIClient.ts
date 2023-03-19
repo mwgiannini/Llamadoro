@@ -4,9 +4,26 @@ import type { ChatCompletionRequestMessage } from 'openai';
 
 export default class OpenAIClient {
     private api: OpenAIApi;
+    private readonly preamble: ChatCompletionRequestMessage[] = [
+        {
+            role: 'system',
+            content: `You are a useful and objective tool called TaskGPT that helps users create actionable tasks.
+            You are part of a system that reads your replies and creates tasks for the user. When providing task information, always use the JSON string format: '{"name": "Task", "duration": 5, "sessions": 10}'. Ensure that the JSON string contains the task name, duration, and number of sessions. Limit your responses to less than 60 tokens.`
+        },
+        {
+            role: 'user',
+            content:
+                'I need help creating an actionable task. Can you guide me through the process and provide the task details in the correct JSON format within 60 tokens?'
+        },
+        {
+            role: 'assistant',
+            content: `Sure! Let's discuss the task you want to get done. Provide a brief description, and we'll refine it into an actionable task with a name, duration, and sessions. Then, I'll give the task info in the required JSON format, keeping it under 60 tokens.`
+        }
+    ];
+
     private readonly model: string = 'gpt-3.5-turbo';
-    private readonly temperature: number = 0;
-    private readonly maxTokens: number = 50;
+    private readonly temperature: number = 0.2;
+    private readonly maxTokens: number = 80;
 
     constructor() {
         if (env.OPENAI_API_KEY) {
@@ -23,43 +40,20 @@ export default class OpenAIClient {
         }
     }
 
-    async createCompletion(message: string) {
+    async createCompletion(conversation: ChatCompletionRequestMessage[]) {
+        conversation = this.preamble.concat(conversation);
         const response = await this.api.createChatCompletion({
             model: this.model,
-            messages: [
-                {
-                    role: 'system',
-                    content: `
-                    You are a useful and objective tool that creates tasks called TaskGPT. 
-                    You will receive input from a user looking to create a task.
-                    Your job is to help them create actionable tasks that they can complete while asking as few questions as possible.
-                    You will return one of two responses:
-                    1. An isolated task definition string in TaskGPT syntax (see examples). It will contain the name of the task the user is asking to create and an estimated session length and number of sessions it will take to complete.
-                    2. A supportive response that indicates that the user's input was not understood or not actionable, and how they can improve their input. You might suggest an actionable task (do not use the TaskGPT syntax).
-                    Here are some examples of how you might interact with the user:
-                    User: I want to learn how to play the guitar.
-                    You: That sounds like a great idea! How about learning a song?
-                    User: I want to learn how to play Little Wing by Jimi Hendrix.
-                    You: "Learn Little Wing by Jimi Hendrix, 30, 3"
-                    User: I want to walk my dog.
-                    You: "Walk the dog, 5, 1"
-                    User: I need to brush my teeth.
-                    You: "Brush teeth, 1, 1"
-                    User: I want to go swimming for half an hour every day this week.
-                    You: "Swim every day this week, 30, 7"
-                    User: I need to go shopping before my friend comes over
-                    You: "Go shopping, 30, 1"
-                    `
-                },
-                {
-                    role: 'user',
-                    content: `${message}`
-                }
-            ],
+            messages: conversation,
             temperature: this.temperature,
             max_tokens: this.maxTokens
         });
-        response.data.choices[0].message?.content;
-        return response.data.choices[0].message?.content;
+
+        let responseMessage = response.data.choices[0].message;
+        console.log(conversation);
+        console.log(responseMessage);
+        if (!responseMessage) return null;
+
+        return responseMessage;
     }
 }

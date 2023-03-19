@@ -33,6 +33,7 @@ export default class MatterWorld {
     private hoveredBody: TaskBody | null;
 
     private readonly wallThickness = 10000;
+    private readonly ballScale = 10;
 
     constructor(
         container: HTMLElement,
@@ -73,7 +74,10 @@ export default class MatterWorld {
         y: number = Math.random() * window.innerHeight
     ) {
         for (let i = 0; i < task.sessionCount; i++) {
-            const circle: TaskBody = Bodies.circle(x, y, task.sessionDuration, {
+            // Calculate the radius based on the area (task.sessionDuration)
+            const radius: number = this.ballScale * Math.sqrt(task.sessionDuration / Math.PI);
+
+            const circle: TaskBody = Bodies.circle(x, y, radius, {
                 render: {
                     fillStyle: task.color,
                     lineWidth: 0,
